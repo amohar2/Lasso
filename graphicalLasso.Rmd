@@ -3,7 +3,6 @@ Implementing GLASSO in a Gaussian Tree Model
 
 ---
 title: "Glasso on a Gaussian Tree"
-author: "Ali Moharrer"
 ---
 
 1. Generate A random Sample for a multivariate Gaussian density with p=11 and mu=0. The covariance matrix has normalized diagonal entries. Also, the covariance matrix Sigma should be related to a Tree with 11 nodes, that is drawn in the report: 
