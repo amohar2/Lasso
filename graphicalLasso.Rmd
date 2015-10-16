@@ -1,0 +1,186 @@
+# Lasso
+Implementing GLASSO in a Gaussian Tree Model
+
+---
+title: "Glasso on a Gaussian Tree"
+author: "Ali Moharrer"
+---
+
+1. Generate A random Sample for a multivariate Gaussian density with p=11 and mu=0. The covariance matrix has normalized diagonal entries. Also, the covariance matrix Sigma should be related to a Tree with 11 nodes, that is drawn in the report: 
+
+```{r}
+library('MASS')
+#Sigma <- matrix(c(10,2,1,1,4,4,2,10,0.2,0.2,0.8,0.8,1,0.2,10,0.1,0.4,0.4,1,0.2,0.1,10,0.4,0.4,4,0.8,0.4,0.4,10,1.6,4,0.8,0.4,0.4,1.6,10),nrow=6)
+Sigma<-rbind(c(1,0.6,0.42,0.18,0.027,0.144,-0.0288,-0.1008,0.036,-0.084,0.168),
+             c(0.6,1,0.7,0.3,0.045,0.24,-0.048,-0.168,0.06,-0.14,0.28),
+             c(0.42,0.7,1,0.21,0.0315,0.168,-0.0336,-0.1176,0.042,-0.2,0.4),
+             c(0.18,0.3,0.21,1,0.15,0.8,-0.16,-0.56,0.2,-0.042,0.084),
+             c(.027,.045,.0315,.15,1,.12,-.024,-.084,.03,-.0063,.0126),
+             c(0.144,0.24,0.168,0.8,0.12,1,-0.2,-0.7,0.25,-0.0336,0.0672),
+             c(-.0288,-.048,-.0336,-.16,-.024,-.2,1,.14,-.05,.00672,-0.1344),
+             c(-.1008,-.168,-.1176,-.56,-.084,-.7,.14,1,-.175,.02352,-.04704),
+             c(0.036,0.06,0.042,0.2,0.03,0.25,-0.05,-0.175,1,-0.0084,0.0168),
+             c(-.084,-.14,-.2,-.042,-.0063,-.0336,.00672,.02352,-.0084,1,-.08),
+             c(.168,.28,.4,.084,.0126,.0672,-.1344,-.04704,.0168,-.08,1)       
+             )
+print(Sigma)
+mu <- rep(0, times=11)
+samples <- mvrnorm(n = 100, mu, Sigma, tol = 1e-6, empirical = FALSE, EISPACK = FALSE)
+#print(samples)
+```
+
+2. It is recommended to standardize our sample data (each column) (but for a moment we ignore this constraint), and compute the empirical covariance matrix S. We also plot the ML precision matrix (note that all the paths regarding to plot functions should be changed appropriatley and set to the local path on the corresponding machine.)
+
+```{r}
+#scaledsamples<-scale(samples)
+#S<-cov(scaledsamples)
+S <- cov(samples)
+S2<-S
+colnames(S2) <- c("X1","X2","X3","X4","X5","X6","X7","X8","X9","X10","X11")
+rownames(S2) <- c("X1","X2","X3","X4","X5","X6","X7","X8","X9","X10","X11")
+ML.precision<-solve(S2) # gives the ML precision matrix
+#######################################################################
+library('gplots')
+png("D:/LSU/Spring 2015/Detection and Estimation/Project/R codes/ML.precision.png",    # create PNG for the heat map        
+width = 5*300,        # 5 x 300 pixels
+height = 5*300,
+res = 300,            # 300 pixels per inch
+pointsize = 8)        # smaller font size
+######################################################################
+my_palette <- colorRampPalette(c("black", "white", "black"))(n = 200)
+par(mfrow=c(2,1))
+heatmap.2(ML.precision,
+  main = "ML Precision", # heat map title
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  Colv="NA",            # turns off column clustering
+  Rowv="NA",
+  col=my_palette,
+  dendrogram = "none"
+  )
+dev.off()
+```
+
+3. Now, we find the precision matrix using graphical lasso:
+
+```{r}
+library('glasso')
+estimated<-glasso(S,rho=0.1) # rho is the normalized version of lambda
+print(estimated$wi) # precision using Glasso
+print(solve(S2)) # Finds the inverse of S2
+print(solve(Sigma))
+#print(estimated$w)  # covariance using Glasso
+```
+
+4. Let's write the precision matrix into Data
+
+```{r}
+write.csv(
+estimated$wi,"D:/LSU/Spring 2015/Detection and Estimation/Project/R codes/Lasso.precision.csv",row.names=FALSE)
+
+```
+
+5. Let's plot the heatmap for actual precision matrix
+
+```{r}
+
+colnames(Sigma) <- c("X1","X2","X3","X4","X5","X6","X7","X8","X9","X10","X11")
+rownames(Sigma) <- c("X1","X2","X3","X4","X5","X6","X7","X8","X9","X10","X11")
+REAL.precision<-solve(Sigma) # gives the REAL precision matrix
+#######################################################################
+#library('gplots')
+png("D:/LSU/Spring 2015/Detection and Estimation/Project/R codes/REAL.precision.png",    # create PNG for the heat map        
+width = 5*300,        # 5 x 300 pixels
+height = 5*300,
+res = 300,            # 300 pixels per inch
+pointsize = 8)        # smaller font size
+######################################################################
+my_palette <- colorRampPalette(c("black", "white", "black"))(n = 200)
+#par(mfrow=c(2,1))
+heatmap.2(REAL.precision,
+  main = "REAL Precision", # heat map title
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  Colv="NA",            # turns off column clustering
+  Rowv="NA",
+  col=my_palette,
+  dendrogram = "none"
+  )
+dev.off()
+```
+
+
+6. Let's plot the LASSO precision matrix
+
+```{r}
+
+LASSO.precision<-estimated$wi
+LASSO.cov<-estimated$w
+colnames(LASSO.precision) <- c("X1","X2","X3","X4","X5","X6","X7","X8","X9","X10","X11")
+rownames(LASSO.precision) <- c("X1","X2","X3","X4","X5","X6","X7","X8","X9","X10","X11")
+#REAL.precision<-solve(Sigma) # gives the REAL precision matrix
+#######################################################################
+#library('gplots')
+png("D:/LSU/Spring 2015/Detection and Estimation/Project/R codes/LASSO.precision.png",    # create PNG for the heat map        
+width = 5*300,        # 5 x 300 pixels
+height = 5*300,
+res = 300,            # 300 pixels per inch
+pointsize = 8)        # smaller font size
+######################################################################
+my_palette <- colorRampPalette(c("black", "white", "black"))(n = 200)
+#par(mfrow=c(2,1))
+heatmap.2(LASSO.precision,
+  main = "LASSO Precision", # heat map title
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  Colv="NA",            # turns off column clustering
+  Rowv="NA",
+  col=my_palette,
+  dendrogram = "none"
+  )
+dev.off()
+
+```
+
+
+Let's Find the KL-distance between KL[Lasso||real] and KL[ML||real]
+
+```{r}
+library('matrixcalc')
+KL.lasso.real<-0.5*(matrix.trace((solve(Sigma))%*%(LASSO.cov))+log(det(Sigma)/det(LASSO.cov)))
+##############################################################################
+KL.ML.real<-0.5*(matrix.trace((solve(Sigma))%*%(S))+log(det(Sigma)/det(S)))
+##############################################################
+print(KL.lasso.real)
+print(KL.ML.real)
+#print(LASSO.cov)
+#print(S)
+#print(LASSO.cov-S)
+```
+
+
+Let's plot the KL distances (the vectors kl.lasso.real and kl.ml.real are found by several rounds of simulations and taking the expected values. The more appropriate way should be a more exhaustive rounds of simulations (more than hundreds), since more exhaustive simulations takes more time, here I used only several rounds of simulations):
+
+```{r}
+png("D:/LSU/Spring 2015/Detection and Estimation/Project/R codes/KL.png",    # create PNG for the heat map        
+width = 5*300,        # 5 x 300 pixels
+height = 5*300,
+res = 300,            # 300 pixels per inch
+pointsize = 8) 
+#########################################################################
+########################################################################
+kl.lasso.real <- c(5.958,5.945,5.954,5.98,5.99,6.045,6.09,6.07,6.1,6.08,6.1,6.06,6.23,6.23,6.33)
+kl.ml.real <- c(5.5165,5.525,5.54,5.57,5.61,5.82,5.89,6.08,6.12,6.06,6.22,6.42,6.96,7.43,8.05)
+N.real <- c(2000,1500,1000,500,300,100,90,80,70,60,50,40,30,20,15)
+N<-c(1:15)
+plot(N,kl.lasso.real,type="b",col="red",ylim=range(c(kl.lasso.real,kl.ml.real)),ann=FALSE,xaxt='n')
+par(new=TRUE)
+plot(N,kl.ml.real,type="b",col="blue",ylim=range(c(kl.lasso.real,kl.ml.real)),axes=FALSE,main="Performance Analysis of LASSO vs. ML",xlab="Number of Samples(N)",ylab="KL Distance: KL(LASSO/ML||True Covariance)")
+box() # includes box around the plot
+axis(1, at=1:15, lab=N.real)
+legend("toplef",legend=c("KL[LASSO||Real]","KL[ML||REAL]"),col=c("red","blue"),lty=c(1,1))
+dev.off()
+```
